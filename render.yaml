@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: health-cert-backend
+    runtime: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: health-cert-db
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+    healthCheckPath: /api/health
+    healthCheckTimeout: 30
+
+  - type: web
+    name: health-cert-frontend
+    runtime: static site
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - path: /*
+        destination: /index.html
+
+  - type: pserv
+    name: health-cert-db
+    runtime: postgres
+    plan: free
+    region: ohio
+    ipAllowList: []
