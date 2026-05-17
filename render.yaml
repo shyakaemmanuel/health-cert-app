@@ -3,7 +3,7 @@ services:
   - type: web
     name: health-cert-backend
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
     envVars:
@@ -28,7 +28,7 @@ services:
   - type: web
     name: health-cert-frontend
     runtime: static
-    plan: free
+    plan: starter
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
