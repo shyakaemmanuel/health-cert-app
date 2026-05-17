@@ -6,7 +6,7 @@ Full-stack health certification verification app with QR code scanning.
 - **Frontend**: React, Tailwind CSS, Vite
 - **Backend**: Node.js, Express, PostgreSQL
 - **Security**: JWT auth, bcrypt, helmet, rate limiting, input validation
-- **Deployment**: Render (with Infrastructure as Code)
+- **Deployment**: Vercel (frontend) + Railway (backend + PostgreSQL)
 
 ## Quick Start
 
@@ -14,7 +14,7 @@ Full-stack health certification verification app with QR code scanning.
 ```bash
 cd backend
 npm install
-cp ../.env.example .env  # Edit with your settings
+cp ../.env.example .env  # Edit with your local settings
 npm start                # Runs on http://localhost:5000
 ```
 
@@ -61,130 +61,80 @@ Response: { "valid": true, "user": { "id": "...", "email": "...", "role": "user"
 
 Open browser console and run:
 ```javascript
-// Check backend health
 await apiDebug.checkBackend()
-
-// Verify your token
 await apiDebug.verifyToken()
-
-// Show API configuration
 apiDebug.showConfig()
-
-// Get stored user
 apiDebug.getStoredUser()
-
-// Get stored token
 apiDebug.getStoredToken()
 ```
 
 ### Common Issues & Solutions
 
 #### Login Fails - CORS Error
-**Problem**: Browser shows CORS error when logging in
-**Solution**: 
-1. Check backend CORS configuration in server.js
-2. Verify `FRONTEND_URL` environment variable is set in Render
-3. URL must include full domain: `https://your-frontend.onrender.com`
-4. Restart backend service
+- Verify `FRONTEND_URL` is set in Railway and matches the exact Vercel origin.
+- Confirm the origin includes `https://`.
+- Restart the backend deployment after updating the env var.
 
 #### Login Fails - "Cannot reach backend"
-**Problem**: Frontend cannot connect to backend API
-**Solution**:
-1. Run `apiDebug.checkBackend()` in browser console
-2. Check `VITE_API_URL` is set correctly in Render frontend environment
-3. Verify backend URL format: `https://your-backend.onrender.com` (no `/api` suffix)
-4. Check backend service status in Render dashboard
+- Run `apiDebug.checkBackend()` in the browser console.
+- Verify `VITE_API_URL` is set correctly in Vercel.
+- Confirm the backend URL is `https://<railway-backend-url>` (no `/api` suffix).
 
 #### Login Fails - Invalid Token
-**Problem**: Token is generated but marked as invalid
-**Solution**:
-1. Verify `JWT_SECRET` is set in both backend environments
-2. Both services must have identical `JWT_SECRET`
-3. Check token hasn't expired (24 hour expiration)
-4. Run `apiDebug.verifyToken()` to debug
+- Confirm `JWT_SECRET` is set in Railway.
+- Ensure only one backend service is using that secret.
+- Run `apiDebug.verifyToken()` to validate the token.
 
 #### Database Connection Failed
-**Problem**: Backend cannot connect to PostgreSQL
-**Solution**:
-1. Check `DATABASE_URL` is set in Render backend environment
-2. Verify PostgreSQL service is running (green status)
-3. Check database connection string format is correct
-4. Review backend logs for specific error
+- Check `DATABASE_URL` in Railway.
+- Confirm PostgreSQL plugin is healthy.
+- Review backend logs in Railway.
 
 #### Database Tables Not Created
-**Problem**: "relation 'users' does not exist" error
-**Solution**:
-1. Tables are created automatically on first backend startup
-2. Wait 2-3 minutes for backend to start and initialize
-3. Check backend logs for initialization messages
-4. Manual: SSH into Render and check table creation
+- Tables are created automatically on first backend startup.
+- Wait a few minutes for initialization.
+- Review backend logs for table creation messages.
 
 ## Deployment
 
-### Deploy to Render
+### Backend — Railway
+1. Push code to GitHub.
+2. Create a Railway project and connect this repository.
+3. Set the service root to `backend` if Railway does not detect it automatically.
+4. Add Railway PostgreSQL.
+5. Set backend env vars:
+   - `NODE_ENV=production`
+   - `JWT_SECRET=<secure-random-string>`
+   - `FRONTEND_URL=https://<your-vercel-frontend-url>`
+   - `LOG_LEVEL=info`
+6. Deploy the backend.
 
-1. Push code to GitHub:
-```bash
-git add .
-git commit -m "Production ready"
-git push origin main
-```
+Railway provides `DATABASE_URL` automatically.
 
-2. Go to [render.com](https://render.com)
+### Frontend — Vercel
+1. Create a Vercel project and import this repository.
+2. Set the root directory to `frontend`.
+3. Confirm the build command is `npm run build` and output directory is `dist`.
+4. Set frontend env var:
+   - `VITE_API_URL=https://<your-railway-backend-url>`
+5. Deploy the frontend.
 
-3. Create Blueprint:
-   - Click "New +" → "Blueprint"
-   - Select your repository
-   - Render reads `render.yaml` automatically
+### Verify Deployments
+- Backend health: `curl https://<your-railway-backend-url>/api/health`
+- Frontend: open your Vercel URL.
+- Use the browser console debug helpers.
 
-4. Set Environment Variables (Backend Service):
-   - `NODE_ENV` = `production`
-   - `JWT_SECRET` = Generate with: `openssl rand -hex 32`
-   - `FRONTEND_URL` = Your frontend URL (set after frontend deploys)
-   - `LOG_LEVEL` = `debug` (for troubleshooting) or `info` (production)
+## Production Environment Variables
 
-5. Set Environment Variables (Frontend Service):
-   - `VITE_API_URL` = Your backend URL (set after backend deploys)
+### Backend (Railway)
+- `NODE_ENV=production`
+- `JWT_SECRET` = strong secret
+- `FRONTEND_URL` = your Vercel frontend origin
+- `DATABASE_URL` = provided by Railway
+- `LOG_LEVEL=info`
 
-6. Wait for deployment (5-10 minutes)
-
-7. Verify:
-   - Backend health: `https://your-backend.onrender.com/api/health`
-   - Frontend: `https://your-frontend.onrender.com`
-   - Test login functionality
-
-### Production Checklist
-
-- [ ] Git repository pushed to GitHub
-- [ ] render.yaml is in repository root
-- [ ] All environment variables set in Render dashboard
-- [ ] Backend health check returns 200 OK
-- [ ] Frontend loads without errors
-- [ ] Can register new account
-- [ ] Can log in successfully
-- [ ] API calls work from frontend
-- [ ] JWT tokens are valid
-- [ ] Database persists data
-- [ ] CORS allows frontend origin
-
-## Performance & Monitoring
-
-### Logs
-View logs in Render Dashboard:
-1. Click service name
-2. Go to "Logs" tab
-3. Search for `[ERROR]`, `[WARN]` to find issues
-
-### Health Check
-Regular health checks confirm backend is running:
-```bash
-curl https://your-backend.onrender.com/api/health
-```
-
-### Response Times
-- Backend startup: 30-60 seconds (cold start on free tier)
-- API response: <100ms typical
-- Database query: <50ms typical
+### Frontend (Vercel)
+- `VITE_API_URL` = Railway backend origin
 
 ## Development
 
@@ -194,32 +144,30 @@ Copy and edit `.env.example`:
 cp .env.example backend/.env
 ```
 
-### Database Initialization
-Tables are auto-created on backend startup. To reset:
+### Run locally
 ```bash
-# In PostgreSQL shell
-DROP TABLE IF EXISTS verification_logs CASCADE;
-DROP TABLE IF EXISTS certificates CASCADE;
-DROP TABLE IF EXISTS subscriptions CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
-# Restart backend to recreate tables
+cd backend && npm install
+cd frontend && npm install
 ```
 
-### Testing
+### Test locally
 ```bash
-# Test backend health
 curl http://localhost:5000/api/health
+```
 
-# Test registration
-curl -X POST http://localhost:5000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"testpass123","full_name":"Test User"}'
+## Smoke Test
+Run the root smoke test script:
+```bash
+npm install
+npm run smoke-test -- http://localhost:5000
+```
 
-# Test login
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"testpass123"}'
+If you set `SMOKE_TEST_EMAIL` and `SMOKE_TEST_PASSWORD`, the script also attempts a login.
+
+## Notes
+- The frontend build uses `VITE_API_URL` at build time.
+- The backend uses `FRONTEND_URL` for production CORS.
+- Do not commit `.env` or secrets to source control.
 ```
 
 ## Security
@@ -237,19 +185,16 @@ curl -X POST http://localhost:5000/api/auth/login \
 
 For issues:
 1. Check browser console (F12) for frontend errors
-2. Check Render logs for backend errors
+2. Check Railway logs for backend errors
 3. Run debug commands: `apiDebug.checkBackend()`, etc.
-4. Review error messages - they're detailed in production
-5. Check [render.com status page](https://status.render.com)
+4. Review error messages in backend logs
 
-**Configuration:**
-- `render.yaml` defines infrastructure (backend, frontend, PostgreSQL database)
-- `.env.example` documents all required environment variables
-- Backend uses PostgreSQL instead of SQLite for production
+## Environment Variables
 
-### Environment Variables
+### Local Development
+Copy `.env.example` to `backend/.env` and update the values.
 
-**Local Development** (in `backend/.env`):
+Example:
 ```
 PORT=5000
 NODE_ENV=development
@@ -259,13 +204,20 @@ FRONTEND_URL=http://localhost:5173
 FRONTEND_URL_DEV=http://localhost:5173
 ```
 
-**Production** (set in Render dashboard):
+### Production
+Set these values in Railway / Vercel:
+
+Backend (Railway):
 ```
 NODE_ENV=production
 JWT_SECRET=<secure-random-string>
-FRONTEND_URL=https://health-cert-frontend.onrender.com
-DATABASE_URL=<auto-populated-by-Render>
-VITE_API_URL=https://health-cert-backend.onrender.com
+FRONTEND_URL=https://<your-vercel-frontend-url>
+LOG_LEVEL=info
+```
+
+Frontend (Vercel):
+```
+VITE_API_URL=https://<your-railway-backend-url>
 ```
 
 ## Project Structure
@@ -287,9 +239,9 @@ health-cert-app/
 │   │   └── main.jsx
 │   ├── vite.config.js
 │   └── package.json
-├── render.yaml                   # Infrastructure as Code for Render
 ├── .env.example                  # Environment variable template
-├── RENDER_DEPLOYMENT.md          # Deployment guide
+├── package.json                  # root scripts / smoke test
+├── DEPLOY.md                    # Deployment guide
 └── README.md
 ```
 
@@ -297,6 +249,7 @@ health-cert-app/
 
 - `POST /api/auth/register` — Create account
 - `POST /api/auth/login` — Login (returns JWT)
+- `GET /api/auth/verify` — Verify token and session
 - `GET /api/certificates` — List user's certificates
 - `POST /api/certificates` — Create certificate with QR code
 - `GET /api/certificates/:id` — Get certificate details
@@ -306,6 +259,6 @@ health-cert-app/
 
 ## Development
 
-See the individual README files:
-- [`backend/README.md`](backend/README.md) (if available)
-- [`frontend/README.md`](frontend/README.md) (if available)
+See the individual folders for local development:
+- `backend/` for API server and database setup
+- `frontend/` for React app and Vite build

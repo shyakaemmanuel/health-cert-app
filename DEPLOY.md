@@ -1,45 +1,58 @@
-# Deployment Guide — GitHub + Render
+# Deployment Guide — Vercel + Railway
 
-This document describes step-by-step how to prepare, push, and deploy the `health-cert-app` (frontend + backend + Postgres) to Render.
+This guide walks through deploying the `health-cert-app` frontend to Vercel and the backend + database to Railway.
 
-1) Prepare repository
-- Ensure local changes are committed:
+## 1) Push your code
+- Commit and push your latest changes:
 
 ```bash
 git add .
-git commit -m "Prepare production: env/docs and deploy scripts"
+git commit -m "Prepare production deployment with Vercel and Railway"
 git push origin main
 ```
 
-2) Render services (render.yaml already included)
-- Render will create three services from `render.yaml`: a Postgres `pserv`, a Node `web` (backend) and a `static site` (frontend).
-- Go to Render dashboard → New → Import from GitHub and choose this repo. Render will detect `render.yaml` and create services.
+## 2) Deploy the backend on Railway
+1. Create a new Railway project.
+2. Connect the GitHub repository and choose the `backend` folder as the service root.
+3. Add the PostgreSQL plugin to the project.
+4. Set these environment variables for the backend service:
+   - `NODE_ENV=production`
+   - `JWT_SECRET=<secure-random-string>`
+   - `FRONTEND_URL=https://<your-vercel-frontend-url>`
+   - `LOG_LEVEL=info`
 
-3) Required Render environment variables
-- Backend (`health-cert-backend`):
-  - `NODE_ENV` = `production` (already set in `render.yaml`)
-  - `JWT_SECRET` = a long random string (e.g. `openssl rand -hex 32`)
-  - `FRONTEND_URL` = https://<your-frontend-service>.onrender.com
-  - `LOG_LEVEL` = `info` (optional)
+Railway will provide `DATABASE_URL` automatically.
 
-- Frontend (`health-cert-frontend`):
-  - `VITE_API_URL` = https://<your-backend-service>.onrender.com
+### Railway notes
+- Railway deploys the backend using `backend/package.json` and the `npm start` command.
+- The backend requires `FRONTEND_URL` in production for CORS.
+- If Railway cannot find the correct root, set the service root explicitly to `backend`.
 
-Notes:
-- The `DATABASE_URL` is automatically provided to the backend from the `health-cert-db` service defined in `render.yaml`.
-- It is critical to set `VITE_API_URL` in the frontend service BEFORE the build runs so the static bundle contains the correct API base URL.
+## 3) Deploy the frontend on Vercel
+1. Create a new Vercel project.
+2. Import the repository and set the root directory to `frontend`.
+3. Configure build settings (Vercel usually detects these automatically):
+   - Build command: `npm run build`
+   - Output directory: `dist`
+   - The `frontend/vercel.json` file is included to support a SPA route rewrite to `index.html`.
 
-4) Redeploy
-- After setting env vars, click redeploy on the frontend and backend services (Render may auto-deploy on env change).
+4. Set this environment variable in Vercel:
+   - `VITE_API_URL=https://<your-railway-backend-url>`
 
-5) Verification steps
-- Backend health endpoint:
+### Vercel notes
+- `VITE_API_URL` is injected at build time, so it must be set before deploying.
+- The frontend is a static site built from `frontend/dist`.
+
+## 4) Verify the deployment
+- Backend health check:
 
 ```bash
-curl https://<your-backend-service>.onrender.com/api/health
+curl https://<your-railway-backend-url>/api/health
 ```
 
-- From the deployed frontend, open the browser console and run these helpers (they are available in the production bundle):
+- Frontend: Open the Vercel URL in your browser.
+
+- In the browser console, you can use the built-in debug helpers:
 
 ```js
 await apiDebug.showConfig();
@@ -48,23 +61,27 @@ await apiDebug.getStoredToken();
 await apiDebug.verifyToken();
 ```
 
-- Try the user flows: Register → Login → access a protected endpoint in the dashboard.
+## 5) Common production environment variables
+### Backend (Railway)
+- `NODE_ENV=production`
+- `JWT_SECRET` = strong secret
+- `FRONTEND_URL` = your Vercel frontend origin, e.g. `https://my-health-cert.vercel.app`
+- `DATABASE_URL` = provided by Railway
+- `LOG_LEVEL=info`
 
-6) Troubleshooting quick checklist
-- 401 on login: confirm `JWT_SECRET` set and identical for signing/verifying.
-- CORS errors: confirm `FRONTEND_URL` matches the exact origin (include https://) in the backend env.
-- Frontend still pointing to `/api`: confirm `VITE_API_URL` is set in the frontend service and the site rebuilt.
+### Frontend (Vercel)
+- `VITE_API_URL` = Railway backend origin, e.g. `https://my-health-backend.up.railway.app`
 
-7) Local smoke test (before pushing)
-- Start backend locally:
+## 6) Local development
+Run backend locally:
 
 ```bash
 cd backend
 npm install
-npm run dev    # or `npm start` if you want production run
+npm run dev
 ```
 
-- Start frontend locally:
+Run frontend locally:
 
 ```bash
 cd frontend
@@ -72,15 +89,29 @@ npm install
 npm run dev
 ```
 
-- Use the local health check:
+Use the local health check:
 
 ```bash
 curl http://localhost:5000/api/health
 ```
 
-8) Security recommendations
-- Use a securely generated `JWT_SECRET` and rotate if compromised.
-- Do not commit `.env` files with secrets.
-- Set sensible log levels and do not log sensitive data.
+## 7) Smoke test
+There is a root-level smoke test available in `scripts/smoke-test.js`.
 
-If you want, I can add a small `scripts/smoke-test.js` that performs the health check and a login flow against a deployed URL — tell me which domain names you will use and I will add it and run it here.
+```bash
+npm install
+npm run smoke-test -- http://localhost:5000
+```
+
+If you set `SMOKE_TEST_EMAIL` and `SMOKE_TEST_PASSWORD`, the script will also attempt a login.
+
+## 8) Troubleshooting
+- `401 Unauthorized`: verify `JWT_SECRET` is set in Railway and `FRONTEND_URL` matches Vercel exactly.
+- CORS errors: confirm `FRONTEND_URL` is the exact origin of your Vercel site, including `https://`.
+- Frontend pointing to `/api`: confirm `VITE_API_URL` is set in Vercel and redeploy.
+- Database connection issues: check Railway PostgreSQL status and `DATABASE_URL`.
+
+## 9) Security reminders
+- Do not commit `.env` or secrets.
+- Use a strong `JWT_SECRET`.
+- Keep production log level to `info` or `warn`.

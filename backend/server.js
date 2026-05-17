@@ -62,6 +62,17 @@ const corsOptions = {
 
 // ===== SECURITY MIDDLEWARE =====
 app.use(helmet());
+
+// Health checks must be reachable by Railway probes that send no Origin header.
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: NODE_ENV,
+    uptime: process.uptime(),
+  });
+});
+
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
