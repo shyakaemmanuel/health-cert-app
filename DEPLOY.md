@@ -14,6 +14,8 @@ git push origin main
 ## 2) Deploy the backend on Railway
 1. Create a new Railway project.
 2. Connect the GitHub repository and choose the `backend` folder as the service root.
+   - This is critical: Railway must build from `backend`, not repo root.
+   - The app root package.json at the repo root does not contain a backend or frontend build.
 3. Add the PostgreSQL plugin to the project.
 4. Set these environment variables for the backend service:
    - `NODE_ENV=production`
@@ -31,11 +33,12 @@ Railway will provide `DATABASE_URL` automatically.
 ## 3) Deploy the frontend on Vercel
 1. Create a new Vercel project.
 2. Import the repository and set the root directory to `frontend`.
+   - This is critical: the actual Vite/React app lives in `frontend/`.
+   - Do not deploy the frontend from the repo root or from Railway.
 3. Configure build settings (Vercel usually detects these automatically):
    - Build command: `npm run build`
    - Output directory: `dist`
    - The `frontend/vercel.json` file is included to support a SPA route rewrite to `index.html`.
-
 4. Set this environment variable in Vercel:
    - `VITE_API_URL=https://<your-railway-backend-url>`
 
