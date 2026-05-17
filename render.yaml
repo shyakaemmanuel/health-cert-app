@@ -34,7 +34,7 @@ services:
     autoDeploy: true
 
   # Frontend Static Site
-  - type: static site
+  - type: static
     name: health-cert-frontend
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
