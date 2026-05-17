@@ -1,12 +1,4 @@
 services:
-  # PostgreSQL Database (Deploy First)
-  - type: pserv
-    name: health-cert-db
-    runtime: postgres
-    plan: free
-    region: ohio
-    ipAllowList: []
-
   # Backend API
   - type: web
     name: health-cert-backend
@@ -47,3 +39,8 @@ services:
         source: /*
         destination: /index.html
     autoDeploy: true
+
+databases:
+  - name: health-cert-db
+    plan: free
+    region: ohio
