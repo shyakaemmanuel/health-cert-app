@@ -30,7 +30,6 @@ services:
       - key: LOG_LEVEL
         value: info
     healthCheckPath: /api/health
-    healthCheckTimeout: 30
     autoDeploy: true
 
   # Frontend Static Site
@@ -44,6 +43,7 @@ services:
       - key: VITE_API_URL
         sync: false
     routes:
-      - path: /*
+      - type: rewrite
+        source: /*
         destination: /index.html
     autoDeploy: true
