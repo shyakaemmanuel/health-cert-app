@@ -1,4 +1,13 @@
 services:
+  # PostgreSQL Database (Deploy First)
+  - type: pserv
+    name: health-cert-db
+    runtime: postgres
+    plan: free
+    region: ohio
+    ipAllowList: []
+
+  # Backend API
   - type: web
     name: health-cert-backend
     runtime: node
@@ -18,21 +27,21 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: LOG_LEVEL
+        value: info
     healthCheckPath: /api/health
     healthCheckTimeout: 30
+    autoDeploy: true
 
-  - type: web
+  # Frontend Static Site
+  - type: static site
     name: health-cert-frontend
-    runtime: static site
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
     routes:
       - path: /*
         destination: /index.html
-
-  - type: pserv
-    name: health-cert-db
-    runtime: postgres
-    plan: free
-    region: ohio
-    ipAllowList: []
+    autoDeploy: true
